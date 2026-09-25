@@ -1,0 +1,35 @@
+"""Master palette. Ramps go dark -> light; shadows lean cool, highlights lean warm (SFC-era JRPG look)."""
+from .px import rgb
+
+OUT = rgb('#1b1a2a')        # universal deep outline
+OUT_WARM = rgb('#2e1c16')   # outline for wood/earth
+
+GRASS = [rgb(c) for c in ('#1f5a2c', '#2f7a2e', '#4b9b33', '#6fba3f', '#9fd35a', '#c9e67c')]
+FOREST = [rgb(c) for c in ('#12321f', '#1c4a28', '#2a6230', '#3d7c36', '#5b9a41')]
+LEAF = [rgb(c) for c in ('#10301f', '#1b4d2a', '#2b6e33', '#43903b', '#6db24a', '#a3d468')]
+PINE = [rgb(c) for c in ('#0f2a22', '#17412d', '#235a36', '#357640', '#5a9a4c')]
+DIRT = [rgb(c) for c in ('#6b4428', '#8f5e36', '#b98352', '#d7a86e', '#ecc990')]
+SAND = [rgb(c) for c in ('#9c7a4c', '#c7a26a', '#e0c48a', '#f0dcaa', '#fbf0cf')]
+COBBLE = [rgb(c) for c in ('#3f3b45', '#66626a', '#8e8a8c', '#b4b0aa', '#d6d2c6')]
+WATER = [rgb(c) for c in ('#142552', '#1d3a7a', '#2c56a8', '#4178cc', '#79a8e4', '#cfe6fb')]
+CANAL = [rgb(c) for c in ('#0e1a3a', '#16295a', '#20407e', '#2f5ea6', '#5d8ccc', '#b9d7f2')]
+ROCK = [rgb(c) for c in ('#3a2a22', '#5e4331', '#86623f', '#a98352', '#caa76f', '#e6cf98')]
+STONE = [rgb(c) for c in ('#3b3a44', '#5f5d66', '#85828a', '#aaa7a6', '#cfcbc2', '#ece8dc')]
+WOOD = [rgb(c) for c in ('#3b2214', '#5c3520', '#80502c', '#a8703c', '#c99256', '#e4b67a')]
+PLASTER = [rgb(c) for c in ('#8c8270', '#b3a88e', '#d6ccb0', '#ebe3cb', '#f8f3e3')]
+TIMBER = [rgb(c) for c in ('#2e1c14', '#4a2d1c', '#684029', '#8a5a38')]
+THATCH = [rgb(c) for c in ('#5a3414', '#8a531e', '#b6772c', '#d99a3e', '#f0c064', '#fadd92')]
+SLATE_B = [rgb(c) for c in ('#1a2244', '#263566', '#344c8c', '#4a68b0', '#6f8fd0', '#a3bde8')]
+SLATE_P = [rgb(c) for c in ('#231633', '#3b2458', '#56357c', '#7449a0', '#9670c2', '#c0a2e0')]
+TERRA = [rgb(c) for c in ('#4a1a16', '#7a2a1e', '#a83e26', '#cc5a32', '#e8844a', '#f6b27a')]
+TEAL = [rgb(c) for c in ('#10302e', '#1b4a47', '#28665f', '#3b877b', '#5daa98', '#96cdb8')]
+MARBLE = [rgb(c) for c in ('#7c7a86', '#a6a4ae', '#c8c6cc', '#e2e0e2', '#f3f2ef', '#ffffff')]
+GOLD = [rgb(c) for c in ('#5a3a10', '#8a5c16', '#bf8a22', '#e2b43a', '#f5d86a', '#fff2b0')]
+RED = [rgb(c) for c in ('#3e0e18', '#6a1624', '#9a2232', '#c83444', '#e45c5c', '#f59a88')]
+BRICK = [rgb(c) for c in ('#3a1a14', '#62281c', '#8a3c26', '#aa5434', '#c87450')]
+METAL = [rgb(c) for c in ('#23262e', '#3c424e', '#5c6674', '#8792a0', '#b8c2cc', '#e6ecf0')]
+GLOW = [rgb(c) for c in ('#1a4a58', '#2a7a88', '#46b2c0', '#86e0e6', '#d6fbfb')]
+AMBER = [rgb(c) for c in ('#5a2e08', '#9a5a10', '#d89a28', '#f6cc5a', '#fff0b8')]
+VOID = [rgb(c) for c in ('#07070c', '#0e0e18', '#181826', '#262636')]
+CONCRETE = [rgb(c) for c in ('#3a3a3e', '#56565a', '#737376', '#929290', '#b0aea8')]
+FLOWERS = [rgb(c) for c in ('#f4f0e8', '#f6d24a', '#e8586a', '#8a7cf0', '#f59ac0', '#ffffff')]
