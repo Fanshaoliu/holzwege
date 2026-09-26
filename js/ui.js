@@ -129,6 +129,12 @@ const UI = (() => {
     const h = $('hud'); $('hud-map').textContent = name; h.classList.remove('hidden'); h.style.opacity = '1';
     clearTimeout(hudT); hudT = setTimeout(() => { h.style.opacity = '0'; }, 2600);
   }
+  let loadT = null;
+  function loading(on) {
+    clearTimeout(loadT);
+    if (on) loadT = setTimeout(() => $('loadnote').classList.remove('hidden'), 350);
+    else $('loadnote').classList.add('hidden');
+  }
   function shake() { const s = $('stage'); s.classList.remove('shake'); void s.offsetWidth; s.classList.add('shake'); setTimeout(() => s.classList.remove('shake'), 480); }
   function flash() { const f = $('flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
 
@@ -332,5 +338,6 @@ const UI = (() => {
     say, advance, hideDialog, dialogActive, choose, fade, cg, titleCard, toast, mapName, shake, flash, askName,
     showTitle, hideTitle, openMenu, navMove, navOk, navBack, get nav() { return S.nav; }, clearNav() { S.nav = null; },
     get scrollEl() { return S.scrollEl; }, credits, get creditsSkip() { return S.creditsSkip; }, mkOpt, setNav, iconCanvas,
+    loading, portraits: () => [...PORTRAITS],
   };
 })();

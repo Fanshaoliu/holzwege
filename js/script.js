@@ -28,6 +28,7 @@ const Script = (() => {
     UI.hideDialog();
     S.running = false;
     if (ended) return;
+    UI.cg('off');
     if (G.mode === 'scene') G.mode = 'map';
     if (after) after();
     if (!World.runAuto()) { /* nothing */ }

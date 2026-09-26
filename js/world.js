@@ -37,15 +37,19 @@ const World = (() => {
   /* ---------------- map loading ---------------- */
   function sheetOf(id) { return `assets/chars/${id}.png`; }
   async function preloadMap(m) {
-    const list = [m.img];
-    if (m.fg) list.push(m.fg);
-    (m.decals || []).forEach(d => list.push(d.img));
-    (m.npcs || []).forEach(n => list.push(sheetOf(n.sprite)));
-    G.party.forEach(p => list.push(sheetOf(p)));
-    list.push(sheetOf('hero'), 'assets/maps/chest.png', 'assets/maps/chest_open.png');
-    if ((m.anims || []).some(a => a.kind === 'wheel')) list.push('assets/maps/wheel.png');
-    if ((m.anims || []).some(a => a.kind === 'core')) list.push('assets/maps/core_anim.png');
-    await Promise.all(list.map(loadImage));
+    const core = [m.img, sheetOf('hero')];
+    if (m.fg) core.push(m.fg);
+    const rest = [];
+    (m.decals || []).forEach(d => rest.push(d.img));
+    (m.npcs || []).forEach(n => rest.push(sheetOf(n.sprite)));
+    G.party.forEach(p => rest.push(sheetOf(p)));
+    rest.push('assets/maps/chest.png', 'assets/maps/chest_open.png');
+    if ((m.anims || []).some(a => a.kind === 'wheel')) rest.push('assets/maps/wheel.png');
+    if ((m.anims || []).some(a => a.kind === 'core')) rest.push('assets/maps/core_anim.png');
+    // sprites that are still downloading pop in when they arrive; never keep the player on a black screen for long
+    const restDone = Promise.all(rest.map(loadImage));
+    await Promise.race([Promise.all(core.map(loadImage)), sleep(12000)]);
+    await Promise.race([restDone, sleep(1500)]);
   }
 
   async function load(id, x, y, dir) {
@@ -67,13 +71,21 @@ const World = (() => {
 
   async function warp(id, x, y, dir, fromScript) {
     W.busy = true;
-    Audio.sfx('door');
-    await UI.fade('out', 260);
-    await load(id, x, y, dir);
-    if (!fromScript) writeSave(AUTO_KEY);
-    render();
-    await UI.fade('in', 260);
-    W.busy = false;
+    Input.clearTap();
+    try {
+      Audio.sfx('door');
+      await UI.fade('out', 260);
+      UI.loading(true);
+      await load(id, x, y, dir);
+      if (!fromScript) writeSave(AUTO_KEY);
+      render();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      UI.loading(false);
+      await UI.fade('in', 260);
+      W.busy = false;
+    }
     if (!fromScript) runAuto();
   }
 

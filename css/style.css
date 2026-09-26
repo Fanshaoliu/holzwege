@@ -127,6 +127,9 @@ button { font-family: inherit; font-size: inherit; color: inherit; }
 @keyframes flash { 0% { opacity: 0.9; } 100% { opacity: 0; } }
 .shake { animation: shake 0.45s linear; }
 @keyframes shake { 20% { transform: translate(-4px, 2px); } 40% { transform: translate(4px, -2px); } 60% { transform: translate(-3px, -1px); } 80% { transform: translate(2px, 2px); } }
+#loadnote { position: absolute; right: 4%; bottom: 5%; z-index: 29; color: #c8d4ff; font-size: 0.8em; text-shadow: 1px 1px 0 #000; pointer-events: none; }
+#loadnote::after { content: ''; animation: dots 1.2s steps(4) infinite; }
+@keyframes dots { 0% { content: ''; } 25% { content: '·'; } 50% { content: '··'; } 75% { content: '···'; } }
 #loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #07080f; z-index: 90; color: #c8d4ff; }
 
 .credits { position: absolute; inset: 0; z-index: 80; background: #05060c; overflow: hidden; }
@@ -141,7 +144,8 @@ button { font-family: inherit; font-size: inherit; color: inherit; }
 @media (pointer: coarse) { #pad { display: block; } .touch-hint { display: block; } .key-hint { display: none; } }
 @media (pointer: coarse) and (orientation: landscape) {
   #pad { position: absolute; left: 0; right: 0; bottom: 0; height: 46vh; background: none; border: 0; pointer-events: none; z-index: 42; }
-  #pad button { pointer-events: auto; opacity: 0.55; }
+  #pad button, #pad #dpad { pointer-events: auto; }
+  #pad button { opacity: 0.55; }
   body:not([data-mode="map"]) #pad { visibility: hidden; }
 }
 #dpad { position: absolute; left: 6%; top: 50%; transform: translateY(-50%); width: min(40vw, 190px); aspect-ratio: 1; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }

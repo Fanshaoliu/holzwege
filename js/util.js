@@ -59,14 +59,66 @@ function pickPage(pages) {
 /* ---------- assets ---------- */
 const IMG = {};
 function loadImage(src) {
-  if (IMG[src]) return IMG[src].p;
-  const img = new Image();
-  const p = new Promise(res => { img.onload = () => res(img); img.onerror = () => { console.warn('img fail', src); res(null); }; });
-  img.src = src;
-  IMG[src] = { img, p };
-  return p;
+  const old = IMG[src];
+  if (old && !old.failed) return old.p;
+  const entry = { img: null, p: null, failed: false };
+  entry.p = new Promise(res => {
+    let tries = 0;
+    const attempt = () => {
+      const im = new Image();
+      entry.img = im;
+      im.onload = () => res(im);
+      im.onerror = () => {
+        tries++;
+        if (tries < 4) { setTimeout(attempt, 700 * tries * tries); return; }
+        entry.failed = true; console.warn('img fail', src); res(null);
+      };
+      im.src = tries ? `${src}?r=${tries}` : src;
+    };
+    attempt();
+  });
+  IMG[src] = entry;
+  return entry.p;
 }
-function img(src) { const e = IMG[src]; return e && e.img.complete && e.img.naturalWidth ? e.img : null; }
+function img(src) { const e = IMG[src]; return e && e.img && e.img.complete && e.img.naturalWidth ? e.img : null; }
+
+/* Downloads every image in story order while the player reads, so doors and CGs rarely wait on the network. */
+const Prefetch = (() => {
+  let started = false;
+  function list() {
+    const out = [];
+    const add = (s) => { if (s && !out.includes(s)) out.push(s); };
+    const mapImages = (id) => {
+      const m = window.MAPS[id]; if (!m) return;
+      add(m.img); add(m.fg);
+      (m.decals || []).forEach(d => add(d.img));
+      (m.npcs || []).forEach(n => add(`assets/chars/${n.sprite}.png`));
+      (m.anims || []).forEach(a => add(a.kind === 'wheel' ? 'assets/maps/wheel.png' : 'assets/maps/core_anim.png'));
+    };
+    const cgs = [];
+    const scan = (cmds) => (cmds || []).forEach(c => {
+      if (c.t === 'cg' && c.name !== 'off' && !cgs.includes(c.name)) cgs.push(c.name);
+      if (c.t === 'if') { scan(c.then); scan(c.else); }
+    });
+    Object.values(window.STORY).forEach(sc => scan(sc.cmds));
+    add(`assets/cg/${cgs[0] || 'dream'}.png`);
+    ['attic', 'workshop', 'village'].forEach(mapImages);
+    add('assets/chars/chloe.png'); add('assets/chars/tin.png');
+    UI.portraits().forEach(k => add(`assets/portraits/${k}.png`));
+    Object.keys(window.MAPS).forEach(mapImages);
+    Object.values(window.BATTLES).forEach(b => { if (b.sprite) add(`assets/monsters/${b.sprite}.png`); });
+    cgs.forEach(n => add(`assets/cg/${n}.png`));
+    return out;
+  }
+  function start(workers) {
+    if (started) return;
+    started = true;
+    const q = list();
+    const run = async () => { while (q.length) await loadImage(q.shift()); };
+    for (let i = 0; i < (workers || 6); i++) run();
+  }
+  return { start, list };
+})();
 
 /* ---------- persistence ---------- */
 const SAVE_KEYS = ['holzwege.slot1', 'holzwege.slot2', 'holzwege.slot3'];

@@ -6,10 +6,23 @@ const Input = (() => {
     W: 'up', S: 'down', A: 'left', D: 'right' };
   const OK = new Set(['z', 'Z', 'Enter', ' ', 'j', 'J', 'e', 'E']);
   const NO = new Set(['x', 'X', 'Escape', 'Backspace', 'k', 'K', 'q', 'Q']);
-  function press(d) { if (!held.includes(d)) held.push(d); onDir(d); }
+  // physical keys, for when an input method turns e.key into 'Process'
+  const CODES = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right' };
+  const OK_CODES = new Set(['KeyZ', 'Enter', 'NumpadEnter', 'Space', 'KeyJ', 'KeyE']);
+  const NO_CODES = new Set(['KeyX', 'Escape', 'Backspace', 'KeyK', 'KeyQ']);
+  const dirOf = e => KEYS[e.key] || CODES[e.code];
+  // a tap that is released before the next frame still counts as one step (or a turn)
+  let tap = null;
+  function press(d) { if (!held.includes(d)) held.push(d); if (G.mode === 'map') tap = d; onDir(d); }
   function release(d) { const i = held.indexOf(d); if (i >= 0) held.splice(i, 1); }
-  function dir() { return G.mode === 'map' ? (held[held.length - 1] || null) : null; }
-  function clear() { held.length = 0; }
+  function dir() {
+    if (G.mode !== 'map') { tap = null; return null; }
+    const d = held[held.length - 1] || tap;
+    tap = null;
+    return d || null;
+  }
+  function clearTap() { tap = null; }
+  function clear() { held.length = 0; tap = null; }
 
   function onDir(d) {
     Audio.unlock();
@@ -45,20 +58,33 @@ const Input = (() => {
 
   function init() {
     window.addEventListener('keydown', e => {
-      if (G.mode === 'name') return;
-      const d = KEYS[e.key];
-      if (d) { e.preventDefault(); if (!e.repeat) press(d); else if (G.mode !== 'map') onDir(d); return; }
+      if (G.mode === 'name' || e.ctrlKey || e.metaKey || e.altKey) return;
+      const d = dirOf(e);
+      if (d) {
+        e.preventDefault();
+        if (!e.repeat) { release(d); press(d); }
+        else if (!held.includes(d)) press(d);
+        else if (G.mode !== 'map') onDir(d);
+        return;
+      }
       if (e.repeat) return;
-      if (OK.has(e.key)) { e.preventDefault(); ok(); }
-      else if (NO.has(e.key)) { e.preventDefault(); cancel(); }
-      else if (e.key === 'm' || e.key === 'M') { if (G.mode === 'map') UI.openMenu(); }
+      if (OK.has(e.key) || OK_CODES.has(e.code)) { e.preventDefault(); ok(); }
+      else if (NO.has(e.key) || NO_CODES.has(e.code)) { e.preventDefault(); cancel(); }
+      else if (e.key === 'm' || e.key === 'M' || e.code === 'KeyM') { if (G.mode === 'map') UI.openMenu(); }
     });
-    window.addEventListener('keyup', e => { const d = KEYS[e.key]; if (d) release(d); });
+    window.addEventListener('keyup', e => { const d = dirOf(e); if (d) release(d); });
     window.addEventListener('blur', clear);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) clear(); });
     // on-screen d-pad with finger sliding
     const dpad = $('dpad');
     let active = null;
-    const pick = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.dataset && el.dataset.d ? el.dataset.d : null; };
+    // direction from the thumb's angle around the pad centre, so corners and the middle never go dead
+    const pick = (x, y) => {
+      const r = dpad.getBoundingClientRect();
+      const dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
+      if (Math.hypot(dx, dy) < r.width * 0.1) return null;
+      return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+    };
     const setDir = (d) => {
       if (d === active) return;
       if (active) { release(active); dpad.querySelector(`[data-d="${active}"]`).classList.remove('on'); }
@@ -88,7 +114,7 @@ const Input = (() => {
     $('menu-btn').addEventListener('click', e => { e.stopPropagation(); Audio.unlock(); if (G.mode === 'map') UI.openMenu(); });
     document.addEventListener('contextmenu', e => e.preventDefault());
   }
-  return { init, dir, clear, ok, cancel };
+  return { init, dir, clear, clearTap, ok, cancel };
 })();
 
 const Main = (() => {
@@ -135,7 +161,9 @@ const Main = (() => {
     resetState();
     G.name = s.name; G.flags = s.flags || {}; G.items = s.items || {}; G.codex = s.codex || {}; G.party = s.party || []; G.opened = s.opened || {};
     UI.hideTitle(); UI.cg('off'); UI.hideDialog();
+    UI.loading(true);
     await World.load(s.map, s.x, s.y, s.dir);
+    UI.loading(false);
     showPlayUI();
     G.mode = 'map';
     await UI.fade('in', 300);
@@ -155,11 +183,16 @@ const Main = (() => {
     toTitle();
   }
 
+  let frameErr = 0;
   function frame(ts) {
     const dt = Math.min(0.05, ((ts - last) / 1000) || 0.016); last = ts;
-    if (document.body.dataset.mode !== G.mode) document.body.dataset.mode = G.mode;
-    if (G.mode === 'map' || G.mode === 'scene' || G.mode === 'menu') World.update(dt);
-    World.render();
+    try {
+      if (document.body.dataset.mode !== G.mode) { document.body.dataset.mode = G.mode; Input.clearTap(); }
+      if (G.mode === 'map' || G.mode === 'scene' || G.mode === 'menu') World.update(dt);
+      World.render();
+    } catch (e) {
+      if (frameErr++ < 3) console.error(e);
+    }
     requestAnimationFrame(frame);
   }
 
@@ -172,6 +205,7 @@ const Main = (() => {
     $('loading').classList.add('hidden');
     UI.showTitle(handlers);
     requestAnimationFrame(frame);
+    Prefetch.start();
   }
 
   return { boot, toTitle, ending, loadFrom, newGame };
