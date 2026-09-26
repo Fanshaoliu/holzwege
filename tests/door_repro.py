@@ -26,8 +26,8 @@ def main():
                     return r.abort()
                 return r.continue_()
             pg.route('**/*', route)
-        pg.goto(URL, timeout=120000)
-        pg.wait_for_function("typeof G !== 'undefined' && G.mode === 'title'", timeout=120000)
+        pg.goto(URL, timeout=180000, wait_until='domcontentloaded')
+        pg.wait_for_function("typeof G !== 'undefined' && G.mode === 'title'", timeout=180000)
         if LAG:
             cdp = ctx.new_cdp_session(pg)
             cdp.send('Network.enable')

@@ -209,7 +209,9 @@ const Main = (() => {
     $('loading').classList.add('hidden');
     UI.showTitle(handlers);
     requestAnimationFrame(frame);
-    Prefetch.start();
+    // start after the page's own load event so the browser does not show the page as still loading
+    if (document.readyState === 'complete') Prefetch.start();
+    else window.addEventListener('load', () => Prefetch.start(), { once: true });
   }
 
   return { boot, toTitle, ending, loadFrom, newGame };
