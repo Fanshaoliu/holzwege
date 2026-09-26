@@ -1,4 +1,5 @@
-gen/
+gen/*
+!gen/chars_orig/
 __pycache__/
 *.pyc
 .DS_Store

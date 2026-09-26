@@ -31,6 +31,7 @@ const Script = (() => {
     UI.cg('off');
     if (G.mode === 'scene') G.mode = 'map';
     if (after) after();
+    if (G.map && G.mode === 'map') writeSave(AUTO_KEY);
     if (!World.runAuto()) { /* nothing */ }
   }
   async function runInline(cmds) {
@@ -38,6 +39,7 @@ const Script = (() => {
     S.running = true; G.mode = 'scene';
     try { await block(cmds); } catch (e) { if (e !== ABORT) console.error(e); }
     UI.hideDialog(); S.running = false; if (G.mode === 'scene') G.mode = 'map';
+    if (G.map && G.mode === 'map') writeSave(AUTO_KEY);
   }
   async function exec(id) {
     let cur = id;

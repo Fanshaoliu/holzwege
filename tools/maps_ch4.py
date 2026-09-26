@@ -52,7 +52,9 @@ def capital():
     m.prop('fountain', 36, 12)
     m.prop('kiosk', 20, 24)
     m.prop('airship', 25, 33)
-    m.prop('telescope', 44, 24, talk='c4_dam')
+    m.prop('telescope', 44, 24)
+    m.event(44, 24, None, trigger='talk')
+    m.events[-1]['pages'] = [['c4_dam_seen', 'v_telescope'], [None, 'c4_dam']]
     for (x, y) in ((21, 12), (26, 12), (21, 18), (26, 18), (21, 30), (26, 30), (10, 21), (37, 21), (21, 38), (26, 38)):
         m.prop('lamp_white', x, y)
     m.prop('pot', 3, 34)
@@ -137,7 +139,9 @@ def museum():
     g = _interior(14, 9, 'M', exit_x=7)
     m = Map('museum', '都城博物馆', g, music='capital_in', indoor=True)
     m.wall_style = 'marble'
-    m.prop('painting', 7, 2, talk='c4_museum')
+    m.prop('painting', 7, 2)
+    m.event(7, 2, None, trigger='talk')
+    m.events[-1]['pages'] = [['c4_museum_seen', 'v_museum_painting'], [None, 'c4_museum']]
     m.prop('statue', 2, 3); m.prop('statue', 11, 3)
     m.prop('rug_b', 5, 4, solid=False, layer='below')
     m.npc('museumman', 'museumman', 8, 5, dir='up', pages=[['c4_museum_seen', 'v_museum_after'], [None, 'c4_museum']])

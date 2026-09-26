@@ -74,7 +74,11 @@ const Input = (() => {
     });
     window.addEventListener('keyup', e => { const d = dirOf(e); if (d) release(d); });
     window.addEventListener('blur', clear);
-    document.addEventListener('visibilitychange', () => { if (document.hidden) clear(); });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) return;
+      clear();
+      if (G.map && G.mode === 'map' && !Script.running && !World.busy) writeSave(AUTO_KEY);
+    });
     // on-screen d-pad with finger sliding
     const dpad = $('dpad');
     let active = null;

@@ -167,7 +167,7 @@ def village():
     m.events[-1]['pages'] = [['c1_sluice_open', 'v_sluice_open'], ['c1_got_key & c1_plank_fixed', 'c1_sluice_open'],
                              ['c1_got_key', 'c1_sluice_notyet'], [None, 'c1_sluice_locked']]
     m.event(34, 3, None, trigger='talk')
-    m.events[-1]['pages'] = [['c1_plank_fixed', 'v_plank_ok'], ['c1_knows_plank & item:hammer', 'c1_plank_fix'], [None, 'c1_plank_look']]
+    m.events[-1]['pages'] = [['c1_plank_fixed', 'v_plank_ok'], ['item:hammer', 'c1_plank_fix'], [None, 'c1_plank_look']]
     m.event(31, 31, None, trigger='talk')
     m.events[-1]['pages'] = [['chest_talked', 'obj_chest_done'], [None, 'obj_talking_chest']]
     m.event(10, 3, 'c5_grave', trigger='step', cond='c5_home & !c5_grave_done', h=2)
@@ -214,7 +214,9 @@ def workshop():
     m.event(12, 6, None, trigger='talk')
     m.events[-1]['pages'] = [['c2_bridge_started & !c2_bridge_nails', 'c2_bridge_nails'], [None, 'obj_crate']]
     m.event(12, 3, None, trigger='talk')
-    m.events[-1]['pages'] = [['c2_hof_bed_done & !c4_hof_died', 'c2_hof_sleeping'], [None, 'obj_bed_hero']]
+    m.events[-1]['pages'] = [['c2_bridge_started & !c2_bridge_nails', 'c2_hof_nails'],
+                             ['c2_hof_bed_done & !c4_hof_died', 'c2_hof_sleeping'], [None, 'obj_bed_hero']]
+    m.event(0, 0, 'c1_hof_hammer', trigger='auto', cond='c1_woke & !c1_got_hammer')
     m.event(0, 0, 'c1_night', trigger='auto', cond='c1_tin_joined & !c1_night_done')
     m.event(0, 0, 'c2_hof_bed', trigger='auto', cond='c2_hof_ill & !c2_hof_bed_done')
     m.event(6, 8, 'c5_door', trigger='talk', cond='c5_home & !c5_door_fixed')

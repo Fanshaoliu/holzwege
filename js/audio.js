@@ -1,62 +1,92 @@
 'use strict';
-/* Tiny chiptune synthesizer: square/triangle voices, a look-ahead sequencer, and SFX. */
+/* Chiptune engine: MML sequencer with NES-style pulse/triangle voices, noise drums and a soft echo, plus SFX.
+   The music data lives in js/music.js. */
 const Audio = (() => {
-  let ctx = null, bgmGain = null, sfxGain = null, cur = null, timer = null, nextTime = 0, pos = [];
-  const NOTE = { C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11 };
-  function freq(n) {
-    const m = n.match(/^([A-G][#b]?)(\d)$/);
-    if (!m) return 0;
-    return 440 * Math.pow(2, (NOTE[m[1]] + (parseInt(m[2], 10) + 1) * 12 - 69) / 12);
-  }
-  function parse(s) {
-    return s.replace(/\|/g, ' ').trim().split(/\s+/).map(t => { const [n, d] = t.split(':'); return [n, parseFloat(d || '1')]; });
-  }
-  const V = { lead: ['square', 0.055], bass: ['triangle', 0.13], arp: ['square', 0.028], pad: ['sine', 0.05], bell: ['sine', 0.07] };
-  const TRACKS = {
-    title: { bpm: 84, ch: {
-      lead: 'A4:2 D5:2 F#5:3 E5:1 | D5:2 B4:2 A4:4 | G4:2 B4:2 D5:3 C#5:1 | B4:2 A4:2 F#4:4 | A4:2 D5:2 F#5:3 A5:1 | G5:2 F#5:2 E5:4 | D5:2 E5:2 F#5:2 G5:2 | F#5:3 E5:1 D5:4',
-      bass: 'D3:4 A3:4 | G2:4 D3:4 | E3:4 B3:4 | F#3:4 D3:4 | D3:4 A3:4 | G3:4 E3:4 | B2:4 G2:4 | A2:4 D3:4',
-      arp: 'D4:1 F#4:1 A4:1 F#4:1 D4:1 F#4:1 A4:1 F#4:1 | G3:1 B3:1 D4:1 B3:1 G3:1 B3:1 D4:1 B3:1 | E4:1 G4:1 B4:1 G4:1 E4:1 G4:1 B4:1 G4:1 | F#3:1 A3:1 D4:1 A3:1 F#3:1 A3:1 D4:1 A3:1 | D4:1 F#4:1 A4:1 F#4:1 D4:1 F#4:1 A4:1 F#4:1 | G3:1 B3:1 E4:1 B3:1 G3:1 B3:1 E4:1 B3:1 | B3:1 D4:1 G4:1 D4:1 B3:1 D4:1 G4:1 D4:1 | A3:1 C#4:1 E4:1 C#4:1 D4:1 F#4:1 A4:1 F#4:1' } },
-    village: { bpm: 100, ch: {
-      lead: 'F5:2 A5:1 C6:3 | Bb5:2 A5:1 G5:3 | A5:2 F5:1 D5:2 E5:1 | F5:6 | C5:2 F5:1 A5:3 | G5:2 E5:1 C5:3 | D5:2 E5:1 F5:2 G5:1 | F5:6',
-      bass: 'F3:3 C4:3 | Bb2:3 F3:3 | D3:3 A3:3 | F3:3 C4:3 | F3:3 A3:3 | C3:3 G3:3 | Bb2:3 C3:3 | F3:6' } },
-    forest: { bpm: 70, ch: {
-      lead: 'D5:4 F5:2 E5:2 | A4:6 -:2 | D5:2 E5:2 F5:2 G5:2 | E5:6 -:2 | F5:4 E5:2 D5:2 | C5:4 A4:4 | Bb4:2 C5:2 D5:4 | A4:8',
-      bass: 'D3:8 | A2:8 | Bb2:8 | A2:8 | D3:8 | F2:8 | G2:8 | A2:8',
-      arp: 'D4:2 A4:2 F4:2 A4:2 | C#4:2 E4:2 A4:2 E4:2 | D4:2 F4:2 Bb4:2 F4:2 | C#4:2 E4:2 A4:2 E4:2 | D4:2 A4:2 F4:2 A4:2 | C4:2 F4:2 A4:2 F4:2 | D4:2 G4:2 Bb4:2 G4:2 | C#4:2 E4:2 A4:2 E4:2' } },
-    world: { bpm: 112, ch: {
-      lead: 'C5:2 C5:1 D5:1 E5:2 G5:2 | F5:2 E5:1 D5:1 E5:4 | D5:2 D5:1 E5:1 F5:2 A5:2 | G5:6 -:2 | C6:2 B5:1 A5:1 G5:2 E5:2 | F5:2 E5:1 D5:1 C5:4 | D5:2 E5:1 F5:1 E5:2 D5:2 | C5:6 -:2',
-      bass: 'C3:2 G3:2 C3:2 G3:2 | F2:2 C3:2 C3:2 G2:2 | G2:2 D3:2 F2:2 C3:2 | G2:2 D3:2 G2:2 B2:2 | A2:2 E3:2 C3:2 G3:2 | F2:2 C3:2 A2:2 E3:2 | G2:2 D3:2 G2:2 B2:2 | C3:2 G3:2 C3:4' } },
-    harbor: { bpm: 126, ch: {
-      lead: 'G5:2 B5:1 D6:2 B5:1 | C6:2 A5:1 F#5:3 | G5:2 B5:1 A5:2 G5:1 | E5:3 D5:3 | G5:2 B5:1 D6:2 E6:1 | D6:2 B5:1 G5:3 | A5:2 C6:1 B5:2 A5:1 | G5:6',
-      bass: 'G3:3 D3:3 | C3:3 D3:3 | G3:3 E3:3 | C3:3 D3:3 | G3:3 B2:3 | G3:3 E3:3 | D3:3 D3:3 | G2:6' } },
-    capital: { bpm: 96, ch: {
-      arp: 'A4:1 E5:1 A5:1 E5:1 A4:1 E5:1 A5:1 E5:1 | F4:1 C5:1 F5:1 C5:1 F4:1 C5:1 F5:1 C5:1 | G4:1 D5:1 G5:1 D5:1 G4:1 D5:1 G5:1 D5:1 | E4:1 B4:1 E5:1 G#5:1 E4:1 B4:1 E5:1 B4:1',
-      lead: 'E5:8 | C5:8 | D5:8 | B4:6 -:2',
-      bass: 'A2:8 | F2:8 | G2:8 | E2:8' } },
-    night: { bpm: 64, ch: {
-      bell: 'C5:3 A4:1 F4:4 | G4:3 A4:1 Bb4:4 | A4:3 G4:1 F4:2 D4:2 | C4:8 | F4:3 G4:1 A4:4 | Bb4:3 A4:1 G4:4 | A4:2 C5:2 Bb4:2 G4:2 | F4:8',
-      bass: 'F3:8 | C3:8 | D3:8 | C3:8 | F3:8 | G2:8 | C3:8 | F2:8' } },
-    battle: { bpm: 150, ch: {
-      lead: 'C5:1 C5:1 G5:2 F5:1 Eb5:1 D5:2 | Eb5:1 F5:1 G5:2 C5:4 | Ab5:1 G5:1 F5:2 Eb5:1 D5:1 C5:2 | D5:1 Eb5:1 F5:2 G5:4',
-      bass: 'C3:1 C4:1 C3:1 C4:1 C3:1 C4:1 C3:1 C4:1 | Ab2:1 Ab3:1 Ab2:1 Ab3:1 Ab2:1 Ab3:1 Ab2:1 Ab3:1 | F2:1 F3:1 F2:1 F3:1 F2:1 F3:1 F2:1 F3:1 | G2:1 G3:1 G2:1 G3:1 G2:1 G3:1 B2:1 B3:1' } },
-    boss: { bpm: 138, ch: {
-      lead: 'E5:2 G5:2 B5:3 A5:1 | G5:2 F#5:2 E5:4 | C5:2 E5:2 G5:3 F#5:1 | E5:2 D#5:2 B4:4',
-      bass: 'E2:1 E3:1 E2:1 E3:1 E2:1 E3:1 E2:1 E3:1 | C2:1 C3:1 C2:1 C3:1 C2:1 C3:1 C2:1 C3:1 | A1:1 A2:1 A1:1 A2:1 A1:1 A2:1 A1:1 A2:1 | B1:1 B2:1 B1:1 B2:1 B1:1 B2:1 D#2:1 D#3:1',
-      arp: 'E4:1 B4:1 E4:1 B4:1 G4:1 B4:1 G4:1 B4:1 | C4:1 G4:1 C4:1 G4:1 E4:1 G4:1 E4:1 G4:1 | A3:1 E4:1 A3:1 E4:1 C4:1 E4:1 C4:1 E4:1 | B3:1 F#4:1 B3:1 F#4:1 D#4:1 F#4:1 D#4:1 F#4:1' } },
-    drone: { bpm: 52, ch: {
-      pad: 'A2:8 | A2:8 | F2:8 | E2:8',
-      bell: '-:4 E5:4 | -:6 C5:2 | -:4 A4:4 | -:8' } },
-  };
-  const ALIAS = { home: 'village', tavern: 'harbor', shrine: 'night', clearing: 'forest', harbor_in: 'harbor', tower: 'capital',
-    capital_in: 'capital', archive: 'capital', backup: 'night', ruins: 'drone', core: 'drone', ending: 'title', sad: 'night' };
+  let ctx = null, bgmGain = null, sfxGain = null, echoIn = null, cur = null, timer = null, waves = {}, noiseBuf = null;
+  const compiled = {};
 
+  /* ---------------- MML ---------------- */
+  const PC = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
+  function parseMML(src) {
+    const s = src.replace(/\|/g, ' ');
+    const ev = [], loops = [];
+    let i = 0, oct = 4, len = 4, ldots = 0, vol = 12, gate = 7;
+    const num = () => { const m = /^\d+/.exec(s.slice(i)); if (!m) return null; i += m[0].length; return parseInt(m[0], 10); };
+    const dots = () => { let n = 0; while (s[i] === '.') { n++; i++; } return n; };
+    const beats = (l, d) => { let b = 4 / l, add = b; for (let k = 0; k < d; k++) { add /= 2; b += add; } return b; };
+    const length = () => { const l = num(); const d = dots(); return l === null ? beats(len, d || ldots) : beats(l, d); };
+    while (i < s.length) {
+      const c = s[i].toLowerCase();
+      if (/\s/.test(c)) { i++; continue; }
+      i++;
+      if (c in PC) {
+        let acc = 0;
+        while (s[i] === '+' || s[i] === '#' || s[i] === '-') { acc += s[i] === '-' ? -1 : 1; i++; }
+        ev.push({ midi: (oct + 1) * 12 + PC[c] + acc, b: length(), vol, gate });
+      } else if (c === 'r') ev.push({ midi: -1, b: length(), vol, gate });
+      else if (c === 'k' || c === 's' || c === 'h') ev.push({ drum: c, b: length(), vol, gate });
+      else if (c === '&') { const b = length(); if (ev.length) ev[ev.length - 1].b += b; }
+      else if (c === 'o') oct = num();
+      else if (c === '<') oct--;
+      else if (c === '>') oct++;
+      else if (c === 'l') { len = num(); ldots = dots(); }
+      else if (c === 'v') vol = num();
+      else if (c === 'q') gate = num();
+      else if (c === '[') loops.push(ev.length);
+      else if (c === ']') {
+        const n = num() || 2, from = loops.pop(), body = ev.slice(from);
+        for (let k = 1; k < n; k++) body.forEach(e => ev.push(Object.assign({}, e)));
+      }
+    }
+    return ev;
+  }
+  const VOICES = {
+    lead: { wave: 'p25', vol: 0.07, a: 0.006, d: 0.14, s: 0.72, r: 0.06, vib: true },
+    harm: { wave: 'p125', vol: 0.045, a: 0.006, d: 0.16, s: 0.65, r: 0.06 },
+    arp: { wave: 'p25', vol: 0.03, a: 0.003, d: 0.09, s: 0.3, r: 0.03 },
+    bass: { wave: 'triangle', vol: 0.16, a: 0.004, d: 0.06, s: 0.9, r: 0.03 },
+    bell: { wave: 'triangle', vol: 0.13, a: 0.002, bell: 0.42, r: 0.05 },
+    soft: { wave: 'triangle', vol: 0.11, a: 0.03, d: 0.25, s: 0.8, r: 0.15, vib: true },
+  };
+  function voiceFor(track, key) {
+    const k = key.replace(/\d+$/, '');
+    return VOICES[(track.voices && track.voices[k]) || k] || VOICES.lead;
+  }
+  function compile(name) {
+    if (compiled[name]) return compiled[name];
+    const tr = MUSIC.TRACKS[name];
+    compiled[name] = { bpm: tr.bpm, ch: Object.entries(tr.ch).map(([k, src]) => ({ key: k, voice: voiceFor(tr, k), ev: parseMML(src) })) };
+    return compiled[name];
+  }
+  function check() {
+    const out = {};
+    for (const name of Object.keys(MUSIC.TRACKS)) {
+      out[name] = {};
+      compile(name).ch.forEach(c => { out[name][c.key] = Math.round(c.ev.reduce((a, e) => a + e.b, 0) * 1000) / 1000; });
+    }
+    return out;
+  }
+
+  /* ---------------- synthesis ---------------- */
   function init() {
     if (ctx) return;
     try {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       bgmGain = ctx.createGain(); sfxGain = ctx.createGain();
       bgmGain.connect(ctx.destination); sfxGain.connect(ctx.destination);
+      // a short, dark echo gives the pulse waves some room without losing the 8-bit character
+      echoIn = ctx.createGain(); echoIn.gain.value = 0.2;
+      const dl = ctx.createDelay(1), fb = ctx.createGain(), lp = ctx.createBiquadFilter();
+      dl.delayTime.value = 0.23; fb.gain.value = 0.26; lp.type = 'lowpass'; lp.frequency.value = 2200;
+      echoIn.connect(dl); dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(bgmGain);
+      for (const [key, duty] of [['p125', 0.125], ['p25', 0.25], ['p50', 0.5]]) {
+        const n = 48, re = new Float32Array(n + 1), im = new Float32Array(n + 1);
+        for (let h = 1; h <= n; h++) re[h] = Math.sin(Math.PI * h * duty) / h;
+        waves[key] = ctx.createPeriodicWave(re, im);
+      }
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1;
       setVolumes();
     } catch (e) { ctx = null; }
   }
@@ -72,38 +102,96 @@ const Audio = (() => {
     g.gain.linearRampToValueAtTime(0, t0 + dur);
     o.connect(g); g.connect(dest); o.start(t0); o.stop(t0 + dur + 0.02);
   }
+  function note(v, midi, t0, len, level, dest) {
+    const f = 440 * Math.pow(2, (midi - 69) / 12);
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    if (waves[v.wave]) o.setPeriodicWave(waves[v.wave]); else o.type = v.wave;
+    o.frequency.setValueAtTime(f, t0);
+    const vol = v.vol * level;
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + v.a);
+    let end;
+    if (v.bell) {
+      g.gain.setTargetAtTime(0, t0 + v.a, v.bell);
+      end = t0 + Math.max(len, v.bell * 3);
+    } else {
+      g.gain.setTargetAtTime(vol * v.s, t0 + v.a, v.d / 3);
+      g.gain.setTargetAtTime(0, t0 + len, v.r / 3);
+      end = t0 + len + v.r * 2;
+    }
+    if (v.vib && len > 0.32) {
+      const lfo = ctx.createOscillator(), depth = ctx.createGain();
+      lfo.frequency.value = 5.5;
+      depth.gain.setValueAtTime(0, t0);
+      depth.gain.linearRampToValueAtTime(0, t0 + 0.18);
+      depth.gain.linearRampToValueAtTime(f * 0.006, t0 + 0.4);
+      lfo.connect(depth); depth.connect(o.frequency);
+      lfo.start(t0); lfo.stop(end);
+    }
+    o.connect(g); g.connect(dest);
+    o.start(t0); o.stop(end + 0.02);
+  }
+  function drum(kind, t0, level, dest) {
+    const src = ctx.createBufferSource(); src.buffer = noiseBuf;
+    const f = ctx.createBiquadFilter(), g = ctx.createGain();
+    const dur = kind === 'h' ? 0.04 : kind === 's' ? 0.13 : 0.09;
+    f.type = kind === 'k' ? 'lowpass' : 'highpass';
+    f.frequency.value = kind === 'h' ? 7000 : kind === 's' ? 1400 : 300;
+    const vol = (kind === 'h' ? 0.05 : kind === 's' ? 0.13 : 0.12) * level;
+    g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    src.connect(f); f.connect(g); g.connect(dest);
+    src.start(t0, Math.random() * 0.5, dur + 0.02);
+    if (kind === 'k') {
+      const o = ctx.createOscillator(), og = ctx.createGain();
+      o.type = 'triangle'; o.frequency.setValueAtTime(150, t0); o.frequency.exponentialRampToValueAtTime(45, t0 + 0.11);
+      og.gain.setValueAtTime(0.32 * level, t0); og.gain.linearRampToValueAtTime(0, t0 + 0.13);
+      o.connect(og); og.connect(dest); o.start(t0); o.stop(t0 + 0.15);
+    }
+  }
+
+  /* ---------------- sequencer ---------------- */
   function play(name) {
-    name = ALIAS[name] || name;
+    name = MUSIC.ALIAS[name] || name;
     if (cur && cur.name === name) return;
     stop();
-    if (!name || name === 'none' || !TRACKS[name]) { cur = null; return; }
+    if (!name || name === 'none' || !MUSIC.TRACKS[name]) { cur = null; return; }
     init();
     if (!ctx) return;
-    const tr = TRACKS[name];
-    cur = { name, bpm: tr.bpm, ch: Object.entries(tr.ch).map(([k, s]) => ({ voice: k, notes: parse(s) })) };
-    pos = cur.ch.map(() => ({ i: 0, t: ctx.currentTime + 0.1 }));
-    timer = setInterval(schedule, 40);
+    const tr = compile(name);
+    const out = ctx.createGain(); out.connect(bgmGain); out.connect(echoIn);
+    const t = ctx.currentTime + 0.12;
+    cur = { name, spb: 60 / tr.bpm, out, ch: tr.ch.map(c => ({ c, i: 0, t })) };
+    timer = setInterval(schedule, 30);
     schedule();
   }
   function schedule() {
     if (!cur || !ctx) return;
-    const eighth = 60 / cur.bpm / 2;
     const horizon = ctx.currentTime + 0.25;
-    cur.ch.forEach((c, k) => {
-      const p = pos[k];
-      while (p.t < horizon) {
-        const [n, d] = c.notes[p.i];
-        const dur = d * eighth;
-        if (n !== '-') {
-          const [type, vol] = V[c.voice];
-          const f = freq(n);
-          if (f) tone(type, f, p.t, dur * (c.voice === 'bell' ? 1.6 : 0.92), vol, bgmGain);
-        }
-        p.t += dur; p.i = (p.i + 1) % c.notes.length;
+    for (const p of cur.ch) {
+      const ev = p.c.ev;
+      if (!ev.length) continue;
+      let guard = 0;
+      while (p.t < horizon && guard++ < 256) {
+        const e = ev[p.i];
+        const dur = e.b * cur.spb;
+        const level = e.vol / 12;
+        if (e.drum) drum(e.drum, p.t, level, cur.out);
+        else if (e.midi >= 0) note(p.c.voice, e.midi, p.t, Math.max(0.03, dur * e.gate / 8), level, cur.out);
+        p.t += dur;
+        p.i = (p.i + 1) % ev.length;
       }
-    });
+    }
   }
-  function stop() { if (timer) clearInterval(timer); timer = null; cur = null; }
+  function stop() {
+    if (timer) clearInterval(timer);
+    timer = null;
+    if (cur && ctx) {
+      const out = cur.out;
+      out.gain.setTargetAtTime(0, ctx.currentTime, 0.08);
+      setTimeout(() => { try { out.disconnect(); } catch (e) { /* already gone */ } }, 1200);
+    }
+    cur = null;
+  }
   function noise(t0, dur, vol, hp) {
     const len = Math.floor(ctx.sampleRate * dur);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -141,5 +229,5 @@ const Audio = (() => {
       default: break;
     }
   }
-  return { play, stop, sfx, unlock, setVolumes, get current() { return cur && cur.name; } };
+  return { play, stop, sfx, unlock, setVolumes, check, parseMML, get current() { return cur && cur.name; } };
 })();

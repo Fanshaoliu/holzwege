@@ -160,7 +160,7 @@ const UI = (() => {
   function showTitle(handlers) {
     G.mode = 'title';
     $('title').classList.remove('hidden');
-    ['hud', 'menu-btn', 'dlg', 'choice', 'battle', 'menu', 'panel'].forEach(id => $(id).classList.add('hidden'));
+    ['hud', 'menu-btn', 'dlg', 'choice', 'battle', 'menu', 'goal', 'panel'].forEach(id => $(id).classList.add('hidden'));
     cg('off');
     const menu = $('title-menu'); menu.innerHTML = '';
     const auto = readSave(AUTO_KEY);
@@ -181,19 +181,34 @@ const UI = (() => {
   function hideTitle() { $('title').classList.add('hidden'); S.nav = null; }
 
   /* ---------------- in-game menu ---------------- */
+  function objective() {
+    for (const o of window.OBJECTIVES || []) {
+      if (!evalCond(o[0])) continue;
+      return o[2] ? o[1] + o[2].filter(p => evalCond(p[0])).map(p => p[1]).join('、') + '。' : o[1];
+    }
+    return '';
+  }
   function openMenu() {
     if (G.mode !== 'map') return;
     G.mode = 'menu';
     const m = $('menu'); m.innerHTML = ''; m.classList.remove('hidden');
-    const close = () => { m.classList.add('hidden'); $('panel').classList.add('hidden'); S.nav = null; G.mode = 'map'; };
+    const goal = $('goal'), gt = objective();
+    goal.innerHTML = '';
+    if (gt) {
+      const lab = document.createElement('span'); lab.className = 'lab'; lab.textContent = '目标';
+      goal.appendChild(lab); goal.appendChild(document.createTextNode(fmt(gt)));
+      goal.classList.remove('hidden');
+    }
+    const hide = () => { m.classList.add('hidden'); goal.classList.add('hidden'); };
+    const close = () => { hide(); $('panel').classList.add('hidden'); S.nav = null; G.mode = 'map'; };
     const back = () => openMenuAgain();
     const opts = [
-      mkOpt('宝物', () => { m.classList.add('hidden'); itemsPanel(back); }),
-      mkOpt('思想手记', () => { m.classList.add('hidden'); codexPanel(back); }),
+      mkOpt('宝物', () => { hide(); itemsPanel(back); }),
+      mkOpt('思想手记', () => { hide(); codexPanel(back); }),
       mkOpt('交谈', () => { close(); if (G.party.length) Script.run(pickPage(PARTY_TALK)); else Script.runInline([{ t: 'narr', text: '身边没有人。' }]); }),
-      mkOpt('存档', () => { m.classList.add('hidden'); savePanel(back, true); }),
-      mkOpt('读档', () => { m.classList.add('hidden'); savePanel(back, false); }),
-      mkOpt('设置', () => { m.classList.add('hidden'); settingsPanel(back); }),
+      mkOpt('存档', () => { hide(); savePanel(back, true); }),
+      mkOpt('读档', () => { hide(); savePanel(back, false); }),
+      mkOpt('设置', () => { hide(); settingsPanel(back); }),
       mkOpt('回到标题', () => { close(); Main.toTitle(); }),
       mkOpt('关闭', close),
     ];
@@ -338,6 +353,6 @@ const UI = (() => {
     say, advance, hideDialog, dialogActive, choose, fade, cg, titleCard, toast, mapName, shake, flash, askName,
     showTitle, hideTitle, openMenu, navMove, navOk, navBack, get nav() { return S.nav; }, clearNav() { S.nav = null; },
     get scrollEl() { return S.scrollEl; }, credits, get creditsSkip() { return S.creditsSkip; }, mkOpt, setNav, iconCanvas,
-    loading, portraits: () => [...PORTRAITS],
+    loading, portraits: () => [...PORTRAITS], objective,
   };
 })();
